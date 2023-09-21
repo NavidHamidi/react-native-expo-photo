@@ -9,10 +9,15 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "deprecated-react-native-prop-types": "^4.2.1",
     "expo": "~49.0.11",
+    "expo-barcode-scanner": "~12.5.3",
+    "expo-camera": "~13.4.4",
     "expo-status-bar": "~1.6.0",
     "react": "18.2.0",
-    "react-native": "0.72.4"
+    "react-native": "0.72.4",
+    "react-native-snap-carousel": "^3.9.1",
+    "react-native-svg": "13.9.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
