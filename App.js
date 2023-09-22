@@ -7,10 +7,17 @@ import {
   Image,
   TouchableOpacity,
 } from 'react-native';
-import { AutoFocus, Camera, FlashMode, VideoStabilization } from 'expo-camera';
+import {
+  AutoFocus,
+  Camera,
+  FlashMode,
+  VideoStabilization,
+  VideoQuality,
+} from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
 import CameraOption from './src/components/CameraOption';
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+//import * as FileSystem from 'expo-file-system';
 import CarouselMenu from './src/components/CarouselMenu';
 
 export default function App() {
@@ -20,25 +27,43 @@ export default function App() {
 
   // control the camera
   const [camera, setCamera] = useState(null);
-  // image captured
-  const [image, setImage] = useState(null);
+
   // set front or back camera
   const [cameraType, setCameraType] = useState(Camera.Constants.Type.back);
+
+  // image captured
+  const [image, setImage] = useState(null);
+
+  // Avaiables pictures sizes of the captured photo depending of the ratio : 4:3, 16:9
+  const [availablePictureSizes, setAvailablePictureSizes] = useState(null);
 
   // camera mode
   // 0 : slow
   // 1 : portrait
   // 2 : photo
   // 3 : video
-  const [cameraMode, setCameraMode] = useState(2); // default mode is photo
+  const cameraMode = {
+    Slow: 0,
+    Portrait: 1,
+    Photo: 2,
+    Video: 3,
+  };
+  const [currentCameraMode, setCurrentCameraMode] = useState(cameraMode.Photo); // default mode is photo
 
   // camera settings
+  const [mirrorMode, setMirrorMode] = useState(false);
   const [autoFocus, setAutoFocus] = useState(true);
   const [flashMode, setFlashMode] = useState(false);
   const [timerMode, setTimerMode] = useState(false); // TODO: Configure a sub menu 3, 5, 10 seconds, default value is 3s
   const [timer, setTimer] = useState(3);
   const [zoom, setZoom] = useState(0.0); // between 0.0 ad 1.0
   const [aspectRatio, setAspectRatio] = useState(true);
+
+  // Record video
+  //const [cameraRecordQuality, setCameraRecordQuality = useState(VideoQuality['1080p'])]
+  const [isRecording, setIsRecording] = useState(false);
+  // Uri of the recorded video
+  const [recordUri, setRecordUri] = useState(null);
 
   // Hook to ask camera permission
   useEffect(() => {
@@ -47,6 +72,11 @@ export default function App() {
       setHasCameraPermission(cameraStatus.status === 'granted');
       const microphoneStatus = await Camera.requestMicrophonePermissionsAsync();
       setHasMicrophonePermission(microphoneStatus.status === 'granted');
+
+      /*if (camera) {
+        const ratios = await camera.getAvailablePictureSizesAsync();
+        setAvailablePictureSizes(ratios);
+      }*/
     })();
   }, []);
 
@@ -59,18 +89,42 @@ export default function App() {
     );
   };
 
-  const getPictureSize = async () => {
-    return await camera.getAvailablePictureSizesAsync(ratio)();
-  };
-
-  const sizes = getPictureSize();
-  console.log(sizes);
-
   // take picture
   const takePicture = async () => {
+    const options = {};
+
     if (camera) {
-      const data = await camera.getAvailablePictureSizesAsync('4:3');
+      const data = await camera.takePictureAsync(options);
       setImage(data.uri);
+    }
+  };
+
+  // record video
+  const startRecord = async () => {
+    const options = {};
+    if (!isRecording && camera) {
+      console.log('Start recording');
+      setIsRecording(true);
+      const { uri } = await camera.recordAsync(options);
+      setRecordUri(uri);
+    }
+  };
+
+  // stop video record
+  const stopRecord = () => {
+    if (camera && isRecording) {
+      camera.stopRecording();
+      setIsRecording(false);
+      console.log('Record stopped, uri available at ', recordUri);
+    }
+  };
+
+  // Dispatch capture button
+  const dispatchCaptureButton = () => {
+    if (currentCameraMode == cameraMode.Photo) takePicture();
+    else if (currentCameraMode == cameraMode.Video) {
+      if (isRecording) stopRecord();
+      else startRecord();
     }
   };
 
@@ -82,7 +136,8 @@ export default function App() {
     );
   }
 
-  console.log('Current camera mode : ', cameraMode);
+  console.log('Current camera mode : ', currentCameraMode);
+  console.log('isRecording', isRecording);
 
   return (
     <SafeAreaView style={styles.safeAreaView}>
@@ -92,7 +147,7 @@ export default function App() {
           contains the following options:
           - flash mode
           - timer
-          - ???? -> ATM it will modify the AutoFocus
+          - ???? -> ATM it will modify the mirror mode
           - aspect ratio
           - settings
          */}
@@ -115,8 +170,8 @@ export default function App() {
             <View style={styles.menuItem}>
               <CameraOption
                 iconName="camera-alt"
-                enabled={autoFocus}
-                setEnabled={setAutoFocus}
+                enabled={mirrorMode}
+                setEnabled={setMirrorMode}
               />
             </View>
             <View style={styles.menuItem}>
@@ -141,7 +196,7 @@ export default function App() {
           <Camera
             ref={(ref) => setCamera(ref)}
             //style={styles.fixedRatio}
-            style={{ aspectRatio: aspectRatio ? 0.77 : 0.6 }}
+            style={{ aspectRatio: aspectRatio ? 0.77 : 0.56 }}
             type={cameraType}
             ratio={aspectRatio ? '4:3' : '16:9'}
             zoom={zoom}
@@ -156,12 +211,12 @@ export default function App() {
          - Carousel menu for camera mode : slow, portrait, photo, video
         */}
         <View style={styles.bottomMenuContainer}>
-          <View style={styles.menuCameraModeContainer}>
-            <View style={styles.menuCameraModeContainer}>
+          <View style={styles.menuCurrentCameraModeContainer}>
+            <View style={styles.menuCurrentCameraModeContainer}>
               <View style={styles.menuItem}>
                 <CarouselMenu
-                  cameraMode={cameraMode}
-                  setCameraMode={setCameraMode}
+                  currentCameraMode={currentCameraMode}
+                  setCurrentCameraMode={setCurrentCameraMode}
                 />
               </View>
             </View>
@@ -184,11 +239,11 @@ export default function App() {
               </View>
               <View style={styles.menuCameraActions}>
                 <View style={styles.menuItem}>
-                  <TouchableOpacity onPress={takePicture}>
+                  <TouchableOpacity onPress={dispatchCaptureButton}>
                     <MaterialCommunityIcons
                       name="circle-slice-8"
                       size={96}
-                      color="white"
+                      color={isRecording ? 'red' : 'white'}
                       style={styles.icon}
                     />
                   </TouchableOpacity>
@@ -221,18 +276,18 @@ const styles = StyleSheet.create({
   },
   topMenuContainer: {
     flex: 0.5,
-    borderColor: 'yellow',
-    borderWidth: '2px',
+    /*borderColor: 'yellow',
+    borderWidth: '2px',*/
   },
   cameraContainer: {
     flex: 4,
-    borderColor: 'blue',
-    borderWidth: '2px',
+    /*borderColor: 'blue',
+    borderWidth: '2px',*/
   },
   bottomMenuContainer: {
     flex: 1.5,
-    borderColor: 'green',
-    borderWidth: '2px',
+    /*borderColor: 'green',
+    borderWidth: '2px',*/
   },
   topMenu: {
     flex: 1,
@@ -242,8 +297,8 @@ const styles = StyleSheet.create({
   },
   menuItem: {
     flex: 1,
-    borderColor: 'red',
-    borderWidth: '2px',
+    /*borderColor: 'red',
+    borderWidth: '2px',*/
     justifyContent: 'center',
     alignContent: 'center',
     textAlign: 'center',
@@ -253,22 +308,22 @@ const styles = StyleSheet.create({
   fixedRatio: {
     aspectRatio: 0.77,
   },
-  menuCameraModeContainer: {
+  menuCurrentCameraModeContainer: {
     flex: 1,
-    borderColor: 'pink',
-    borderWidth: '1px',
+    /*borderColor: 'pink',
+    borderWidth: '1px',*/
     justifyContent: 'center',
     alignItems: 'center',
   },
-  menuCameraMode: {
+  menuCurrentCameraMode: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   menuCameraActionContainer: {
     flex: 1,
-    borderColor: 'purple',
-    borderWidth: '1px',
+    /*borderColor: 'purple',
+    borderWidth: '1px',*/
   },
   menuCameraActions: {
     flex: 1,

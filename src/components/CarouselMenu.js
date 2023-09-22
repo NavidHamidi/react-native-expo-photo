@@ -33,7 +33,7 @@ const data = [
 
 function CarouselMenu(props) {
   // Track the index of the selected item to customize style
-  let cameraMode = props.cameraMode;
+  let cameraMode = props.currentCameraMode;
 
   const renderItem = ({ item, index }) => {
     return (
@@ -59,7 +59,7 @@ function CarouselMenu(props) {
       autoPlay={false}
       data={data}
       onSnapToItem={(index) => {
-        props.setCameraMode(index);
+        props.setCurrentCameraMode(index);
         cameraMode = index;
       }}
       renderItem={renderItem}
