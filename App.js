@@ -7,23 +7,20 @@ import {
   Image,
   TouchableOpacity,
 } from 'react-native';
-import {
-  AutoFocus,
-  Camera,
-  FlashMode,
-  VideoStabilization,
-  VideoQuality,
-} from 'expo-camera';
+import { AutoFocus, Camera, FlashMode, VideoStabilization } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
 import CameraOption from './src/components/CameraOption';
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
-//import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import CarouselMenu from './src/components/CarouselMenu';
 
 export default function App() {
   // define camera permission (consents asked to the user)
   const [hasCameraPermission, setHasCameraPermission] = useState(null);
   const [hasMicrophonePermission, setHasMicrophonePermission] = useState(null);
+
+  // define Media permissions (save into gallery)
+  const [mediaPermission, setMediaPermission] = useState(null);
 
   // control the camera
   const [camera, setCamera] = useState(null);
@@ -34,7 +31,7 @@ export default function App() {
   // image captured
   const [image, setImage] = useState(null);
 
-  // Avaiables pictures sizes of the captured photo depending of the ratio : 4:3, 16:9
+  // Availables pictures sizes of the captured photo depending of the ratio : 4:3, 16:9
   const [availablePictureSizes, setAvailablePictureSizes] = useState(null);
 
   // camera mode
@@ -70,15 +67,23 @@ export default function App() {
     (async () => {
       const cameraStatus = await Camera.requestCameraPermissionsAsync();
       setHasCameraPermission(cameraStatus.status === 'granted');
+
       const microphoneStatus = await Camera.requestMicrophonePermissionsAsync();
       setHasMicrophonePermission(microphoneStatus.status === 'granted');
 
-      /*if (camera) {
-        const ratios = await camera.getAvailablePictureSizesAsync();
-        setAvailablePictureSizes(ratios);
-      }*/
+      const mediaStatus = await MediaLibrary.requestPermissionsAsync();
+      setMediaPermission(mediaStatus.status === 'granted');
     })();
   }, []);
+
+  // If no permission set we cannot use the camera
+  if (hasCameraPermission === false) {
+    return (
+      <View>
+        <Text>No access to camera</Text>
+      </View>
+    );
+  }
 
   // flip camera
   const flipCamera = () => {
@@ -89,13 +94,29 @@ export default function App() {
     );
   };
 
+  // Save captured picture or video
+  // ATM it cause crash but didn't find out why because the picture or video is well saved, no error printed on the console
+  const savePictureOrRecordToLibrary = async (uri) => {
+    /*try {
+      const asset = await MediaLibrary.createAssetAsync(uri);
+      if (asset) await MediaLibrary.saveToLibraryAsync(asset);
+    } catch (error) {
+      console.error('error when saving : ', error);
+    }*/
+  };
+
   // take picture
   const takePicture = async () => {
     const options = {};
 
     if (camera) {
-      const data = await camera.takePictureAsync(options);
-      setImage(data.uri);
+      const { uri } = await camera.takePictureAsync(options);
+      setImage(uri);
+      try {
+        savePictureOrRecordToLibrary(uri);
+      } catch (error) {
+        console.log('error when saving : ', error);
+      }
     }
   };
 
@@ -103,10 +124,14 @@ export default function App() {
   const startRecord = async () => {
     const options = {};
     if (!isRecording && camera) {
-      console.log('Start recording');
       setIsRecording(true);
       const { uri } = await camera.recordAsync(options);
       setRecordUri(uri);
+      try {
+        savePictureOrRecordToLibrary(uri);
+      } catch (error) {
+        console.log('error when saving : ', error);
+      }
     }
   };
 
@@ -115,7 +140,6 @@ export default function App() {
     if (camera && isRecording) {
       camera.stopRecording();
       setIsRecording(false);
-      console.log('Record stopped, uri available at ', recordUri);
     }
   };
 
@@ -127,17 +151,6 @@ export default function App() {
       else startRecord();
     }
   };
-
-  if (hasCameraPermission === false) {
-    return (
-      <View>
-        <Text>No access to camera</Text>
-      </View>
-    );
-  }
-
-  console.log('Current camera mode : ', currentCameraMode);
-  console.log('isRecording', isRecording);
 
   return (
     <SafeAreaView style={styles.safeAreaView}>
@@ -232,7 +245,9 @@ export default function App() {
             <View style={styles.menuCameraActions}>
               <View style={styles.menuCameraActions}>
                 <View style={styles.menuItem}>
-                  {image && (
+                  {cameraMode === cameraMode.Video ? (
+                    <Video source={{ uri: recordUri }} style={{ flex: 1 }} />
+                  ) : (
                     <Image source={{ uri: image }} style={{ flex: 1 }} />
                   )}
                 </View>
