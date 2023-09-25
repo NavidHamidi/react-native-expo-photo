@@ -7,6 +7,7 @@ import {
   Image,
   TouchableOpacity,
 } from 'react-native';
+import { Video } from 'react-native-video';
 import { AutoFocus, Camera, FlashMode, VideoStabilization } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
 import CameraOption from './src/components/CameraOption';
@@ -30,9 +31,6 @@ export default function App() {
 
   // image captured
   const [image, setImage] = useState(null);
-
-  // Availables pictures sizes of the captured photo depending of the ratio : 4:3, 16:9
-  const [availablePictureSizes, setAvailablePictureSizes] = useState(null);
 
   // camera mode
   // 0 : slow
@@ -112,6 +110,7 @@ export default function App() {
     if (camera) {
       const { uri } = await camera.takePictureAsync(options);
       setImage(uri);
+      console.log(image);
       try {
         savePictureOrRecordToLibrary(uri);
       } catch (error) {
@@ -126,8 +125,10 @@ export default function App() {
     if (!isRecording && camera) {
       setIsRecording(true);
       const { uri } = await camera.recordAsync(options);
-      setRecordUri(uri);
+      //setRecordUri(uri);
+
       try {
+        //await setRecordUri(uri);
         savePictureOrRecordToLibrary(uri);
       } catch (error) {
         console.log('error when saving : ', error);
@@ -214,7 +215,13 @@ export default function App() {
             ratio={aspectRatio ? '4:3' : '16:9'}
             zoom={zoom}
             autoFocus={autoFocus ? AutoFocus.on : AutoFocus.off}
-            flashMode={flashMode ? FlashMode.on : FlashMode.off}
+            flashMode={
+              flashMode
+                ? currentCameraMode === CameraMode.Photo
+                  ? FlashMode.on
+                  : FlashMode.torch
+                : FlashMode.off
+            }
             videoStabilizationMode={VideoStabilization.auto}
           />
         </View>
@@ -245,10 +252,18 @@ export default function App() {
             <View style={styles.menuCameraActions}>
               <View style={styles.menuCameraActions}>
                 <View style={styles.menuItem}>
-                  {cameraMode === cameraMode.Video ? (
-                    <Video source={{ uri: recordUri }} style={{ flex: 1 }} />
-                  ) : (
+                  {currentCameraMode === cameraMode.Phot ||
+                  recordUri === null ? (
                     <Image source={{ uri: image }} style={{ flex: 1 }} />
+                  ) : (
+                    <Video
+                      ref={(ref) => {
+                        this.player = ref;
+                      }}
+                      source={{ uri: 'recordUri' }}
+                      style={{ flex: 1 }}
+                      controls={true}
+                    />
                   )}
                 </View>
               </View>
